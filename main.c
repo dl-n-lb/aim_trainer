@@ -4,6 +4,9 @@
 #include "raylib-5.0/src/raylib.h"
 #include "raylib-5.0/src/raymath.h"
 
+// the smartest idea ever
+#include "xml.c"
+
 // TODO: scoring
 // TODO: press any key to start
 // TODO: different gamemodes
@@ -58,25 +61,28 @@ typedef struct {
   };
 } target_t;
 
-void initialize_cubes(size_t n, Cube cubes[static n]) {
+void initialize_cubes(size_t n, cube_t cubes[static n]) {
   for (size_t i = 0; i < n; ++i) {
     float x = (float)rand() / RAND_MAX * 2 - 1;
     float y = (float)rand() / RAND_MAX * 2 - 1;
     float z = -2;
     cubes[i].position = (Vector3){ x, y, z };
 
+    cubes[i].dims = (Vector3) {0.1, 0.1, 0.1};
+    Vector3 d = cubes[i].dims;
+
     BoundingBox b;
-    b.min.x = x - 0.05;
-    b.min.y = y - 0.05;
-    b.min.z = z - 0.05;
-    b.max.x = x + 0.05;
-    b.max.y = y + 0.05;
-    b.max.z = z + 0.05;
+    b.min.x = x - d.x/2;
+    b.min.y = y - d.y/2;
+    b.min.z = z - d.z/2;
+    b.max.x = x + d.x/2;
+    b.max.y = y + d.y/2;
+    b.max.z = z + d.z/2;
     cubes[i].bbox = b;
   }
 }
 
-size_t check_collision(Ray r, size_t n, Cube cubes[static n]) {
+size_t check_collision(Ray r, size_t n, cube_t cubes[static n]) {
   RayCollision rc;
   for (size_t i = 0; i < n; ++i) {
     rc = GetRayCollisionBox(r, cubes[i].bbox);
@@ -85,29 +91,31 @@ size_t check_collision(Ray r, size_t n, Cube cubes[static n]) {
   return n;
 }
 
-void respawn_cube(size_t i, size_t n, Cube cubes[static n]) {
+void respawn_cube(size_t i, size_t n, cube_t cubes[static n]) {
   float x = (float)rand() / RAND_MAX * 2 - 1;
   float y = (float)rand() / RAND_MAX * 2 - 1;
   float z = -2;
   cubes[i].position = (Vector3){ x, y, z };
 
+  Vector3 d = cubes[i].dims;
   BoundingBox b;
-  b.min.x = x - 0.05;
-  b.min.y = y - 0.05;
-  b.min.z = z - 0.05;
-  b.max.x = x + 0.05;
-  b.max.y = y + 0.05;
-  b.max.z = z + 0.05;
+  b.min.x = x - d.x/2;
+  b.min.y = y - d.y/2;
+  b.min.z = z - d.z/2;
+  b.max.x = x + d.x/2;
+  b.max.y = y + d.y/2;
+  b.max.z = z + d.z/2;
+
   cubes[i].bbox = b;
 }
 
-void draw_cubes(size_t n, Cube cubes[static n]) {
-  float sz = 0.1f;
-
+void draw_cubes(size_t n, cube_t cubes[static n]) {
+  // wall TODO: remove hardcoding
   DrawCube((Vector3){0, 0, -2}, 2, 2, 0.05, GRAY);
 
   for (size_t i = 0; i < n; ++i) {
-    DrawCube(cubes[i].position, sz, sz, sz, ORANGE);
+    Vector3 d = cubes[i].dims;
+    DrawCube(cubes[i].position, d.x, d.y, d.z, ORANGE);
   }
 }
 
@@ -123,7 +131,7 @@ typedef enum {
 
 #define CUBE_CNT 5
 
-Cube cubes[CUBE_CNT];
+cube_t cubes[CUBE_CNT];
 Texture2D crosshair;
 float time_remaining;
 float score;
