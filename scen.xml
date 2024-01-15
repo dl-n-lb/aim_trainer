@@ -1,0 +1,26 @@
+<!-- this is a comment -->
+<scenario>
+  <!-- player values probably should have defaults -->
+  <!-- player is always at 0, 0, 0 -->
+  <!-- centre of screen is mapped to view direction 0, 0, -1 -->
+  <player>
+    <!-- Firerate when holding M1 in Hz -->
+    <firerate>1</firerate>
+    <!-- Damage per bullet -->
+    <damage>1</damage>
+  </player>
+
+  <!-- describes the targets -->
+  <target>
+    <!-- unique identifier -->
+    <name>Target1</name>
+    <!-- corresponds to a list of shapes -->
+    <type>Cube</type>
+  </target>
+
+  <!-- spawn pattern -->
+  <spawn>
+    <initial></initial>
+    <onkill></onkill>
+  </spawn>
+</scenario>

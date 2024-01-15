@@ -6,6 +6,7 @@
 
 // TODO: scoring
 // TODO: press any key to start
+// TODO: different gamemodes
 // TODO: local leaderboard
 // TODO: Change window sz in settings
 // TODO: fullscreen
@@ -40,8 +41,22 @@ void set_camera_rotation(Camera *camera, Vector2 angles) {
 
 typedef struct {
   Vector3 position;
+  Vector3 dims;
   BoundingBox bbox;
-} Cube;
+} cube_t;
+
+typedef enum {
+  HT_CUBE,
+  HT_COUNT,
+} target_type;
+
+typedef struct {
+  target_type type;
+  float hp;
+  union {
+    cube_t cube;
+  };
+} target_t;
 
 void initialize_cubes(size_t n, Cube cubes[static n]) {
   for (size_t i = 0; i < n; ++i) {
@@ -111,7 +126,7 @@ typedef enum {
 Cube cubes[CUBE_CNT];
 Texture2D crosshair;
 float time_remaining;
-
+float score;
 
 game_state_e update_gameplay() {
   static Camera camera = {
@@ -123,6 +138,10 @@ game_state_e update_gameplay() {
   };
 
   time_remaining -= GetFrameTime();
+  if (time_remaining <= 0) {
+    printf("%f\n", score);
+    assert(false && "GAME OVER TODO");
+  }
   
   Vector2 mouse_position = GetMousePosition();
 
@@ -132,6 +151,7 @@ game_state_e update_gameplay() {
     Ray r = GetMouseRay((Vector2){width/2, height/2}, camera);
     size_t i = check_collision(r, CUBE_CNT, cubes);
     if (i < CUBE_CNT) {
+      score += 1;
       respawn_cube(i, CUBE_CNT, cubes);
     }
   }
@@ -147,9 +167,16 @@ game_state_e update_gameplay() {
     EndMode3D();
 
     DrawTexture(crosshair, width/2 - crosshair.width/2, height/2 - crosshair.height/2, WHITE);
+    float pad = 10.f;
+    // time remaining
     char text[128];
     snprintf(text, 128, "%.2f", time_remaining);
-    DrawText(text, 0, 0, 24, BLACK);
+    DrawText(text, pad, pad, 24, BLACK);
+    // score
+    snprintf(text, 128, "%.0f", score);
+    float spacing = 1.5f;
+    Vector2 sz = MeasureTextEx(GetFontDefault(), text, 24, spacing);
+    DrawTextEx(GetFontDefault(), text, (Vector2){width - sz.x - pad, pad}, 24, spacing, BLACK);
   }
   EndDrawing();
 
