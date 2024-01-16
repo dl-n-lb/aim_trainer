@@ -1,3 +1,4 @@
+// copyright @mattdrinksglue 2024
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -13,6 +14,7 @@ typedef struct {
 typedef struct {
   char *data;
   size_t len;
+  size_t cap;
 } str;
 
 #define strf "%.*s"
@@ -25,6 +27,15 @@ bool sv_cmp(sv a, sv b) {
   return strncmp(a.data, b.data, a.len) == 0;
 }
 
+void str_append(str *s, char c) {
+  if (s->len >= s->cap) {
+    if (s->cap == 0) { s->cap = 1; }
+    s->cap *= 2;
+    s->data = realloc(s->data, s->cap);
+    assert(s->data && "REALLOC FAILED");
+  }
+  s->data[s->len++] = c;
+}
 
 // error data set when xml parsing fails
 struct {
@@ -256,29 +267,6 @@ void parse_xml(sv xml, assoc_arr cbs) {
   }
   free(stack.labels);
   free(stack.indices);
-}
-
-struct {
-  struct {
-    float firerate;
-    float damage;
-  } player_info;
-
-  struct {
-    int a;
-  } spawn_info;
-} level;
-
-void set_firerate(sv content) {
-  char *new = strndup(content.data, content.len);  
-  level.player_info.firerate = atof(new);
-  free(new);
-}
-
-void set_damage(sv content) {
-  char *new = strndup(content.data, content.len);
-  level.player_info.damage = atof(new);
-  free(new);
 }
 
 /*

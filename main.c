@@ -1,3 +1,4 @@
+// copyright @mattdrinksglue 2024
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -5,33 +6,116 @@
 #include "raylib-5.0/src/raymath.h"
 
 // the smartest idea ever
+// order is important :D
 #include "xml.c"
+#include "settings.c"
+
+// FIXME: text has large numbers of hardcoded constants
+// TODO: fetch text information from settings.xml
 
 // TODO: scoring
+// TODO: local leaderboard
+//   NOTE: store past scores in the scenario file
+//   TODO: write to xml files as well as read
 // TODO: press any key to start
 // TODO: different gamemodes
-// TODO: local leaderboard
+//   NOTE: this means parsing the scen.xml file to produce a scenario
+
 // TODO: Change window sz in settings
 // TODO: fullscreen
 // TODO: change input mode?
 // TODO: input offset to make resetting tablet position easier
-const int width = 800;
-const int height = 600;
 
-Vector2 get_angles_from_mouse_position(Vector2 mouse_position) {
-  Vector2 res;
-  // Y = 0..height -> -PI..PI
-  // and invert
-  res.y = -(float)mouse_position.y / height * 2 * M_PI + M_PI;
-  // X = 0..width -> 0..2*PI
-  // and invert
-  res.x = -(float)mouse_position.x / width * 2 * M_PI;
+// UI BUTTONS
 
-  return res;
+// x, y are centre coords
+// returns true if clicked
+bool menu_button(const char *text, int x, int y) {
+
+  float spacing = 2.5f;
+  Vector2 sz = MeasureTextEx(GetFontDefault(), text, 36, spacing);
+  int pad = 10;
+
+  x = x - sz.x/2;
+  y = y - sz.y/2;
+
+  bool active = false;
+  Vector2 m = GetMousePosition();
+  if (m.x > x && m.x < x + sz.x + pad * 2 && m.y > y && m.y < y + sz.y + pad * 2) {
+    active = true;
+  }
+  
+  DrawRectangle(x, y, sz.x + pad*2, sz.y + pad*2, BLACK);
+  DrawTextEx(GetFontDefault(), text, (Vector2){x+pad, y+pad}, 36, spacing, WHITE);
+  
+  if (active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) return true;
+  return false;
+}
+
+// returns true if a confirmation button is pressed
+// and writes the value to out
+// out is malloced by this function
+// out should be freed 
+bool entry_box(const char *label, int x, int y, str *out) {
+  static bool active = false;
+  float spacing = 2.5f;
+  Vector2 sz = MeasureTextEx(GetFontDefault(), label, 36, spacing);
+  int pad = 10;  
+
+  x = x - sz.x - pad;
+  y = y - sz.y/2;
+  // label  
+  DrawRectangle(x, y, sz.x + pad*2, sz.y + pad*2, BLACK);
+  DrawTextEx(GetFontDefault(), label, (Vector2){x+pad, y+pad}, 36, spacing, WHITE);
+
+  // entry box
+  DrawRectangle(x+sz.x+pad*2, y, sz.x + pad*2, sz.y + pad*2, (active) ? GREEN : RED);
+  // draw text
+  char *text_cstr = strndup(out->data, out->len);
+  DrawTextEx(GetFontDefault(), text_cstr,
+	     (Vector2){x+sz.x+3*pad, y+pad}, 36, spacing, BLACK);
+  free(text_cstr);
+
+  // update state
+  Vector2 m = GetMousePosition();
+  if (m.x > x + sz.x + 2*pad &&
+      m.x < x + 2*sz.x + pad * 4 &&
+      m.y > y && m.y < y + sz.y + pad * 2) {
+    active = active || IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+  } else if (active) {
+    active = !IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+  }
+  if (active) {
+    char x;
+    if ((x = GetCharPressed()) > 0) {
+      str_append(out, x);
+    }
+    int key_press = GetKeyPressed();
+    if (key_press == KEY_BACKSPACE) {
+      out->len--;
+    }
+    if (key_press == KEY_ENTER) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // assumes normalized view vector
-void set_camera_rotation(Camera *camera, Vector2 angles) {
+void set_camera_rotation(Camera *camera, Vector2 mouse_position) {
+  Vector2 angles;
+  // Y = 0..height -> -PI..PI
+  // and invert
+  angles.y = -(float)mouse_position.y / global_settings.height * 2 * M_PI + M_PI;
+  // X = 0..width -> 0..2*PI
+  // and invert
+  angles.x = -(float)mouse_position.x / global_settings.width * 2 * M_PI;
+  // FIXME: sensitivity only makes sensse >1 for now
+  // NOTE: resetting mouse position without changing view angle
+  // (see input offset above)
+  //angles.x *= global_settings.sensitivity;
+  //angles.y *= global_settings.sensitivity;
   Vector3 view_zero = (Vector3) {0, 0, 1};
   Matrix m = MatrixRotateXYZ((Vector3){angles.y, angles.x, 0});
   Vector3 view_dir = Vector3Transform(view_zero, m);
@@ -119,7 +203,6 @@ void draw_cubes(size_t n, cube_t cubes[static n]) {
   }
 }
 
-
 typedef enum {
   GS_MENU,
   GS_GAMEPLAY,
@@ -136,7 +219,28 @@ Texture2D crosshair;
 float time_remaining;
 float score;
 
-game_state_e update_gameplay() {
+// draws time_remaining
+// draws score
+void draw_game_stats(void) {
+  float pad = 10.f;
+  // time remaining
+  char text[128];
+  snprintf(text, 128, "%.2f", time_remaining);
+  float spacing = 1.5f;
+  Vector2 sz = MeasureTextEx(GetFontDefault(), text, 36, spacing);
+  
+  DrawText(text, global_settings.width/2 - sz.x/2, pad, 36, BLACK);
+  // score
+  snprintf(text, 128, "%.0f", score);
+
+  sz = MeasureTextEx(GetFontDefault(), text, 24, spacing);
+  DrawTextEx(GetFontDefault(), text,
+	     (Vector2){global_settings.width - sz.x - pad, pad},
+	     24, spacing, BLACK);
+
+}
+
+game_state_e update_gameplay(void) {
   static Camera camera = {
     .position = (Vector3) { 0, 0, 0 },
     .target   = (Vector3) { 0, 0, -1 },
@@ -153,10 +257,11 @@ game_state_e update_gameplay() {
   
   Vector2 mouse_position = GetMousePosition();
 
-  set_camera_rotation(&camera, get_angles_from_mouse_position(mouse_position));
+  set_camera_rotation(&camera, GetMousePosition());
 
   if (IsKeyPressed(KEY_A)) {
-    Ray r = GetMouseRay((Vector2){width/2, height/2}, camera);
+    Ray r = GetMouseRay((Vector2){global_settings.width/2,
+				  global_settings.height/2}, camera);
     size_t i = check_collision(r, CUBE_CNT, cubes);
     if (i < CUBE_CNT) {
       score += 1;
@@ -174,75 +279,61 @@ game_state_e update_gameplay() {
     }
     EndMode3D();
 
-    DrawTexture(crosshair, width/2 - crosshair.width/2, height/2 - crosshair.height/2, WHITE);
-    float pad = 10.f;
-    // time remaining
-    char text[128];
-    snprintf(text, 128, "%.2f", time_remaining);
-    DrawText(text, pad, pad, 24, BLACK);
-    // score
-    snprintf(text, 128, "%.0f", score);
-    float spacing = 1.5f;
-    Vector2 sz = MeasureTextEx(GetFontDefault(), text, 24, spacing);
-    DrawTextEx(GetFontDefault(), text, (Vector2){width - sz.x - pad, pad}, 24, spacing, BLACK);
+    DrawTexture(crosshair, global_settings.width/2 - crosshair.width/2,
+		global_settings.height/2 - crosshair.height/2, WHITE);
+
+    draw_game_stats();
+    DrawFPS(0, 0);
   }
   EndDrawing();
 
   return GS_GAMEPLAY;
 }
 
-// x, y are centre coords
-// returns true if clicked
-bool menu_button(const char *text, int x, int y) {
-
-  float spacing = 2.5f;
-  Vector2 sz = MeasureTextEx(GetFontDefault(), text, 36, spacing);
-  int pad = 10;
-
-  x = x - sz.x/2;
-  y = y - sz.y/2;
-
-  bool active = false;
-  Vector2 m = GetMousePosition();
-  if (m.x > x && m.x < x + sz.x + pad * 2 && m.y > y && m.y < y + sz.y + pad * 2) {
-    active = true;
-  }
-  
-  DrawRectangle(x, y, sz.x + pad*2, sz.y + pad*2, BLACK);
-  DrawTextEx(GetFontDefault(), text, (Vector2){x+pad, y+pad}, 36, spacing, WHITE);
-  
-  if (active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) return true;
-  return false;
-}
-
-game_state_e update_menu() {
+game_state_e update_menu(void) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
-  if (menu_button("Play", width/2, height/2)) {
+  if (menu_button("Play", global_settings.width/2, global_settings.height/2)) {
     initialize_cubes(CUBE_CNT, cubes);
     HideCursor();
     time_remaining = 60.f;
     return GS_GAMEPLAY;
   }
-  if (menu_button("Options", width/2, height/2 + 80)) {
+  if (menu_button("Options", global_settings.width/2, global_settings.height/2 + 80)) {
     return GS_OPTIONS;
   }
-  if (menu_button("Quit", width/2, height/2 + 160)) {
+  if (menu_button("Quit", global_settings.width/2, global_settings.height/2 + 160)) {
     return GS_QUIT;
   }
-
+  DrawFPS(0, 0);
   EndDrawing();
   return GS_MENU;
 }
 
-game_state_e update_options() {
+game_state_e update_options(void) {
+  BeginDrawing();
+  ClearBackground(RAYWHITE);
+  float pad = 100.f;
+  if (menu_button("Apply", global_settings.width/2, pad)) {
+    printf("Applied :3\n");
+  }
+  
+  if (entry_box("Target FPS", global_settings.width/2, 2*pad, &global_settings.desired_fps_str)) {
+  }
+  
+  DrawFPS(0, 0);
+  EndDrawing();
+  return GS_OPTIONS;
   assert(false && "TODO LATER");
 }
 
 int main(void) {
-  InitWindow(width, height, "Hello, world window");
+
+  load_settings();
+  
+  InitWindow(global_settings.width, global_settings.height, "Hello, world window");
   // TODO: change target FPS in settings
-  SetTargetFPS(120);
+  SetTargetFPS(global_settings.desired_fps);
 
 
   Vector3 position = {0, 0, 0};

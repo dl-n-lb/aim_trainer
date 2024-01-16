@@ -1,0 +1,20 @@
+<settings>
+  <resolution>1280,720</resolution>
+  <targetFPS>240</targetFPS>
+  <sensitivity>0.5</sensitivity>
+  <crosshair>crosshair.png</crosshair>
+  
+  <theme>
+    <menu>
+      <font>Default</font>
+      <fontSize>36</fontSize>
+      <colour>#FF0010</colour>     
+    </menu>
+    <!-- wish
+    <scenario>
+      <font>Default</font>
+      <fontSize>36</fontSize>
+    </scenario>
+    -->
+  </theme>
+</settings>
