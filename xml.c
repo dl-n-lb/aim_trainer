@@ -28,13 +28,14 @@ bool sv_cmp(sv a, sv b) {
 }
 
 void str_append(str *s, char c) {
-  if (s->len >= s->cap) {
+  if (s->len+1 >= s->cap) {
     if (s->cap == 0) { s->cap = 1; }
     s->cap *= 2;
     s->data = realloc(s->data, s->cap);
     assert(s->data && "REALLOC FAILED");
   }
   s->data[s->len++] = c;
+  s->data[s->len] = '\0';
 }
 
 // error data set when xml parsing fails
@@ -201,6 +202,8 @@ void stack_init(size_t cap) {
   assert(cap > 0);
   if (stack.labels) {
     free(stack.labels);
+  }
+  if (stack.indices) {
     free(stack.indices);
   }
   stack.count = 0;
@@ -267,6 +270,8 @@ void parse_xml(sv xml, assoc_arr cbs) {
   }
   free(stack.labels);
   free(stack.indices);
+  stack.labels = NULL;
+  stack.indices = NULL;
 }
 
 /*

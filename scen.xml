@@ -1,4 +1,5 @@
 <scenario>
+  <name>1w5t</name>
   <!-- player values probably should have defaults -->
   <!-- player is always at 0, 0, 0 -->
   <!-- centre of screen is mapped to view direction 0, 0, -1 -->
@@ -9,17 +10,28 @@
     <damage>1</damage>
   </player>
 
-  <!-- describes the targets -->
-  <target>
-    <!-- unique identifier -->
-    <name>Target1</name>
-    <!-- corresponds to a list of shapes -->
-    <type>Cube</type>
-  </target>
-
   <!-- spawn pattern -->
   <spawn>
+    <!-- describes the targets -->
+    <target>
+      <!-- corresponds to a list of shapes -->
+      <type>Cube</type>
+      <!-- dimensions of the object
+	   for a sphere, this would be a single float
+	   for a cuboid its 3
+      -->
+      <dimensions>0.1, 0.1, 0.1</dimensions>
+      <health>1</health>
+      <!-- probability of this type of target spawning -->
+      <spawnChance>1</spawnChance>
+    </target>
+    <targetCount>5</targetCount>
+    <!-- x,y,z,x1,y1,z1 start(x, y, z), end(x1, y1, z1) -->
+    <!-- spawns are random in the cube enclosed -->
+    <area>-1,-1,-2,1,1,-2</area>
+    <!--
     <initial></initial>
     <onkill></onkill>
+    -->
   </spawn>
 </scenario>

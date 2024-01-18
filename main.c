@@ -9,31 +9,33 @@
 // order is important :D
 #include "xml.c"
 #include "settings.c"
-
-// FIXME: text has large numbers of hardcoded constants
-// TODO: fetch text information from settings.xml
+#include "scenario.c"
 
 // TODO: scoring
 // TODO: local leaderboard
-//   NOTE: store past scores in the scenario file
+//   NOTE: store past scores in the scenario file?
 //   TODO: write to xml files as well as read
+// TODO: custom text position in scenarios
 // TODO: press any key to start
 // TODO: different gamemodes
-//   NOTE: this means parsing the scen.xml file to produce a scenario
 
-// TODO: Change window sz in settings
 // TODO: fullscreen
+//   NOTE: done? but just blackscreens - test offstream because it fks with monitor settings too
 // TODO: change input mode?
 // TODO: input offset to make resetting tablet position easier
 
 // UI BUTTONS
+
+Font menu_font;
 
 // x, y are centre coords
 // returns true if clicked
 bool menu_button(const char *text, int x, int y) {
 
   float spacing = 2.5f;
-  Vector2 sz = MeasureTextEx(GetFontDefault(), text, 36, spacing);
+  Vector2 sz = MeasureTextEx(menu_font, text,
+			     menu_theme_settings.font_size,
+			     menu_theme_settings.font_spacing);
   int pad = 10;
 
   x = x - sz.x/2;
@@ -46,7 +48,10 @@ bool menu_button(const char *text, int x, int y) {
   }
   
   DrawRectangle(x, y, sz.x + pad*2, sz.y + pad*2, BLACK);
-  DrawTextEx(GetFontDefault(), text, (Vector2){x+pad, y+pad}, 36, spacing, WHITE);
+  DrawTextEx(menu_font, text, (Vector2){x+pad, y+pad},
+	     menu_theme_settings.font_size,
+	     menu_theme_settings.font_spacing,
+	     menu_theme_settings.font_colour);
   
   if (active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) return true;
   return false;
@@ -59,22 +64,28 @@ bool menu_button(const char *text, int x, int y) {
 bool entry_box(const char *label, int x, int y, str *out) {
   static bool active = false;
   float spacing = 2.5f;
-  Vector2 sz = MeasureTextEx(GetFontDefault(), label, 36, spacing);
+  Vector2 sz = MeasureTextEx(menu_font, label,
+			     menu_theme_settings.font_size,
+			     menu_theme_settings.font_spacing);
   int pad = 10;  
 
   x = x - sz.x - pad;
   y = y - sz.y/2;
   // label  
   DrawRectangle(x, y, sz.x + pad*2, sz.y + pad*2, BLACK);
-  DrawTextEx(GetFontDefault(), label, (Vector2){x+pad, y+pad}, 36, spacing, WHITE);
+  DrawTextEx(menu_font, label, (Vector2){x+pad, y+pad},
+	     menu_theme_settings.font_size,
+	     menu_theme_settings.font_spacing,
+	     menu_theme_settings.font_colour);
 
   // entry box
   DrawRectangle(x+sz.x+pad*2, y, sz.x + pad*2, sz.y + pad*2, (active) ? GREEN : RED);
   // draw text
-  char *text_cstr = strndup(out->data, out->len);
-  DrawTextEx(GetFontDefault(), text_cstr,
-	     (Vector2){x+sz.x+3*pad, y+pad}, 36, spacing, BLACK);
-  free(text_cstr);
+  DrawTextEx(menu_font, out->data,
+	     (Vector2){x+sz.x+3*pad, y+pad},
+	     menu_theme_settings.font_size,
+	     menu_theme_settings.font_spacing,
+	     menu_theme_settings.font_colour);
 
   // update state
   Vector2 m = GetMousePosition();
@@ -92,7 +103,7 @@ bool entry_box(const char *label, int x, int y, str *out) {
     }
     int key_press = GetKeyPressed();
     if (key_press == KEY_BACKSPACE) {
-      out->len--;
+      out->data[--out->len] = '\0';
     }
     if (key_press == KEY_ENTER) {
       return true;
@@ -125,25 +136,6 @@ void set_camera_rotation(Camera *camera, Vector2 mouse_position) {
     camera->position.z + view_dir.z
   };
 }
-
-typedef struct {
-  Vector3 position;
-  Vector3 dims;
-  BoundingBox bbox;
-} cube_t;
-
-typedef enum {
-  HT_CUBE,
-  HT_COUNT,
-} target_type;
-
-typedef struct {
-  target_type type;
-  float hp;
-  union {
-    cube_t cube;
-  };
-} target_t;
 
 void initialize_cubes(size_t n, cube_t cubes[static n]) {
   for (size_t i = 0; i < n; ++i) {
@@ -206,6 +198,7 @@ void draw_cubes(size_t n, cube_t cubes[static n]) {
 typedef enum {
   GS_MENU,
   GS_GAMEPLAY,
+  GS_GAMEOVER,
   GS_OPTIONS,
   GS_QUIT,
   GS_CNT
@@ -218,6 +211,7 @@ cube_t cubes[CUBE_CNT];
 Texture2D crosshair;
 float time_remaining;
 float score;
+Font game_font;
 
 // draws time_remaining
 // draws score
@@ -227,17 +221,24 @@ void draw_game_stats(void) {
   char text[128];
   snprintf(text, 128, "%.2f", time_remaining);
   float spacing = 1.5f;
-  Vector2 sz = MeasureTextEx(GetFontDefault(), text, 36, spacing);
-  
-  DrawText(text, global_settings.width/2 - sz.x/2, pad, 36, BLACK);
+  Vector2 sz = MeasureTextEx(game_font, text, 36, spacing);
+
+  DrawTextEx(game_font, text,
+	     (Vector2){global_settings.width/2 - sz.x/2, pad},
+	     scen_theme_settings.font_size,
+	     scen_theme_settings.font_spacing,
+	     scen_theme_settings.font_colour);
   // score
   snprintf(text, 128, "%.0f", score);
 
-  sz = MeasureTextEx(GetFontDefault(), text, 24, spacing);
-  DrawTextEx(GetFontDefault(), text,
+  sz = MeasureTextEx(game_font, text,
+		     scen_theme_settings.font_size,
+		     scen_theme_settings.font_spacing);
+  DrawTextEx(game_font, text,
 	     (Vector2){global_settings.width - sz.x - pad, pad},
-	     24, spacing, BLACK);
-
+	     scen_theme_settings.font_size,
+	     scen_theme_settings.font_spacing,
+	     scen_theme_settings.font_colour);
 }
 
 game_state_e update_gameplay(void) {
@@ -251,8 +252,8 @@ game_state_e update_gameplay(void) {
 
   time_remaining -= GetFrameTime();
   if (time_remaining <= 0) {
-    printf("%f\n", score);
-    assert(false && "GAME OVER TODO");
+    ShowCursor();
+    return GS_GAMEOVER;
   }
   
   Vector2 mouse_position = GetMousePosition();
@@ -290,24 +291,55 @@ game_state_e update_gameplay(void) {
   return GS_GAMEPLAY;
 }
 
+game_state_e update_gameover(void) {
+  game_state_e ns = GS_GAMEOVER;
+  BeginDrawing();
+  ClearBackground(RAYWHITE);
+
+  // draw score
+  char text[128];
+  snprintf(text, 128, "%.0f", score);
+  Vector2 dims = MeasureTextEx(menu_font, text,
+			       menu_theme_settings.font_size,
+			       menu_theme_settings.font_spacing);
+  Vector2 pos = {
+    global_settings.width/2  - dims.x/2,
+    global_settings.height/2 - dims.y/2
+  };
+  DrawTextEx(menu_font, text, pos,
+	     menu_theme_settings.font_size,
+	     menu_theme_settings.font_spacing,
+	     BLACK);
+  if (menu_button("Continue", global_settings.width/2, global_settings.height/2 + 100.)) {
+    // TODO: save score somewhere
+    score = 0;
+    ns = GS_MENU;
+  }
+  
+  EndDrawing();
+
+  return ns;
+}
+
 game_state_e update_menu(void) {
+  game_state_e ns = GS_MENU;
   BeginDrawing();
   ClearBackground(RAYWHITE);
   if (menu_button("Play", global_settings.width/2, global_settings.height/2)) {
     initialize_cubes(CUBE_CNT, cubes);
     HideCursor();
-    time_remaining = 60.f;
-    return GS_GAMEPLAY;
+    time_remaining = 5.f;
+    ns = GS_GAMEPLAY;
   }
   if (menu_button("Options", global_settings.width/2, global_settings.height/2 + 80)) {
-    return GS_OPTIONS;
+    ns = GS_OPTIONS;
   }
   if (menu_button("Quit", global_settings.width/2, global_settings.height/2 + 160)) {
-    return GS_QUIT;
+    ns = GS_QUIT;
   }
   DrawFPS(0, 0);
   EndDrawing();
-  return GS_MENU;
+  return ns;
 }
 
 game_state_e update_options(void) {
@@ -324,18 +356,38 @@ game_state_e update_options(void) {
   DrawFPS(0, 0);
   EndDrawing();
   return GS_OPTIONS;
-  assert(false && "TODO LATER");
+}
+
+void load_fonts(void) {
+  if (menu_theme_settings.font_path) {
+    printf("Loading font from %s...\n", menu_theme_settings.font_path);
+    menu_font = LoadFontEx(menu_theme_settings.font_path, 512, NULL, 0);
+    assert(IsFontReady(menu_font) && "Font path specified is invalid or another font loading error has occurred");
+  } else {
+    menu_font = GetFontDefault();
+  }
+  if (scen_theme_settings.font_path) {
+    printf("Loading font from %s...\n", scen_theme_settings.font_path);
+    game_font = LoadFontEx(scen_theme_settings.font_path, 512, NULL, 0);
+    assert(IsFontReady(game_font) && "Font path specified is invalid or another font loading error has occurred");
+  } else {
+    game_font = GetFontDefault();
+  }
 }
 
 int main(void) {
-
   load_settings();
+  load_scenario("scen.xml");
   
   InitWindow(global_settings.width, global_settings.height, "Hello, world window");
   // TODO: change target FPS in settings
   SetTargetFPS(global_settings.desired_fps);
+  if (global_settings.desire_fullscreen) {
+    ToggleFullscreen();
+  }
 
-
+  load_fonts();
+  
   Vector3 position = {0, 0, 0};
 
   Image crosshair_image = LoadImage("./crosshair.png");
@@ -348,12 +400,19 @@ int main(void) {
   bool done = false;
   while (!WindowShouldClose() && !done) {
     switch(cstate) {
-    case GS_MENU: { cstate = update_menu(); break; }
+    case GS_MENU:     { cstate = update_menu();     break; }
     case GS_GAMEPLAY: { cstate = update_gameplay(); break; }
-    case GS_OPTIONS: { cstate = update_options(); break; }
-    case GS_QUIT: { done = true; break; }
+    case GS_GAMEOVER: { cstate = update_gameover(); break; }
+    case GS_OPTIONS:  { cstate = update_options();  break; }
+    case GS_QUIT:     { done = true; break; }
     default: assert(false && "UNREACHABLE");
     }    
   }
+  // FIXME this is bad
+  if (menu_theme_settings.font_path) {
+    UnloadFont(menu_font);
+    free(menu_theme_settings.font_path);
+  }
+  CloseWindow();
   return 0;
 }

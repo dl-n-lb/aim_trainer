@@ -1,20 +1,25 @@
 <settings>
   <resolution>1280,720</resolution>
-  <targetFPS>240</targetFPS>
+  <targetFPS>480</targetFPS>
+  <fullscreen>0</fullscreen>
   <sensitivity>0.5</sensitivity>
   <crosshair>crosshair.png</crosshair>
   
   <theme>
     <menu>
-      <font>Default</font>
+      <!--<font>/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf</font>-->
       <fontSize>36</fontSize>
-      <colour>#FF0010</colour>     
+      <fontSpacing>2.5</fontSpacing>
+      <colour>#FFFFFF</colour>     
     </menu>
-    <!-- wish
     <scenario>
-      <font>Default</font>
-      <fontSize>36</fontSize>
+      <fontSize>48</fontSize>
+      <fontSpacing>1.5</fontSpacing>
+      <colour>#000000</colour>
     </scenario>
-    -->
   </theme>
+
+  <user>
+    <name>Matt</name>
+  </user>
 </settings>
